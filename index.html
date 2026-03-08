@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App Báo Cước </title>
+    <link rel="icon" type="image/png" href="https://s120-25-ava-talk.zadn.vn/2/8a89fe1b4f3dc1b02c6087db93fcc642.jpg?key=trRU56l7V1GXvGL0dBsbxQ&time=1775195737">
+
+    <link rel="apple-touch-icon" href="https://s120-25-ava-talk.zadn.vn/2/8a89fe1b4f3dc1b02c6087db93fcc642.jpg?key=trRU56l7V1GXvGL0dBsbxQ&time=1775195737">
+
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        /* GIỮ NGUYÊN CSS CŨ */
+        body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f4f6f8; color: #333; margin: 0; }
+        * { box-sizing: border-box; }
+        .hidden { display: none !important; }
+        button { cursor: pointer; }
+        .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        
+        .user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .user-btn { padding: 25px; font-size: 16px; border: none; border-radius: 12px; background: #007bff; color: white; font-weight: bold; }
+        .user-btn:active { transform: scale(0.96); background: #0056b3; }
+
+        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .input-row { display: flex; gap: 8px; /* Khoảng cách giữa các ô */ align-items: center; }
+
+        input { padding: 15px; font-size: 18px; border: 1px solid #ddd; border-radius: 8px; outline: none; width: 100%; }
+        input.uppercase-input { text-transform: uppercase; }
+        input.qty-input { flex: 2; text-align: center; }
+
+        .btn-quick-add {
+    flex: 3; /* Nút Tiếp chiếm 3 phần */
+    height: 50px; /* Bằng chiều cao của input */
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.btn-quick-add:active {
+    background: #1e7e34;
+    transform: scale(0.95);
+}
+
+/* Ẩn nút TIẾP cũ ở bên dưới nếu bạn không dùng nữa */
+.btn-next {
+    display: none !important;
+}
+
+
+
+.reset-batch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.reset-batch-info { font-size: 14px; }
+.reset-batch-info b { color: #007bff; }
+
+        input.name-input { flex: 5; } 
+        input:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+
+        #review-area { max-height: 25vh; overflow-y: auto; background: #fafafa; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 70px; }
+        .review-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e0e0e0; }
+        .btn-mini { padding: 6px 12px; font-size: 13px; border-radius: 6px; border: none; color: white; font-weight: bold; }
+        .btn-del { background-color: #ff4d4f; }
+
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-batch { background: #fff; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .batch-header { background: #e9ecef; padding: 10px; font-weight: bold; color: #007bff; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .batch-body { padding: 10px; }
+        .batch-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #f8f9fa; text-align: left; color: #666; padding: 10px; border-bottom: 2px solid #ddd; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .status-OK { color: #28a745; font-weight: bold; }
+        .status-THIEU { color: #dc3545; font-weight: bold; }
+        .status-DU { color: #fd7e14; font-weight: bold; }
+        .row-stranger { background-color: #fff0f0; }
+
+        .action-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 10px 15px; display: flex; gap: 10px; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); z-index: 90; }
+        .big-btn { flex: 1; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; }
+        .btn-next { background: #28a745; color: white; }
+        .btn-submit { background: #dc3545; color: white; }
+
+        .stats-box { background: #fff3cd; border: 1px solid #ffeeba; }
+        .stats-list { list-style: none; padding: 0; margin: 0; }
+        .stats-list li { padding: 8px 0; border-bottom: 1px dashed #d1c6a3; display: flex; justify-content: space-between; }
+        .total-row { border-top: 2px solid #d1c6a3; margin-top: 5px; padding-top: 10px !important; font-weight: bold; color: #d63384; font-size: 16px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-height: 80vh; overflow-y: auto; }
+        .close-btn { background: #6c757d; color: white; padding: 8px 15px; border-radius: 6px; border: none; width: 100%; margin-top: 10px; }
+        .modal-input { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; }
+
+        .search-list { list-style: none; padding: 0; margin: 0; }
+        .search-item { padding: 10px; background: #e3f2fd; margin-bottom: 8px; border-radius: 6px; border: 1px solid #b6d4fe; }
+        .tag-user { background: #6f42c1; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="password-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="text-align: center;">
+            <h3 id="password-title">🔒 Mật khẩu</h3>
+            <input type="password" id="manager-password" class="modal-input" placeholder="Nhập mật khẩu..." inputmode="numeric">
+            <button onclick="handlePasswordSubmit()" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:6px;">Xác nhận</button>
+            <button onclick="closeModal('password-modal')" class="close-btn" style="background:#ccc;">Hủy</button>
+        </div>
+    </div>
+
+    <div id="history-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="text-align: center; margin-top: 0;">📜 Lịch sử tour Nhập</h3>
+            <div id="history-list" class="history-list"></div>
+            <button onclick="closeModal('history-modal')" class="close-btn">Đóng</button>
+        </div>
+    </div>
+
+    <div id="search-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="text-align: center; margin-top: 0;">🔍 Tra cứu</h3>
+            <input type="text" id="search-input" class="modal-input uppercase-input" 
+                   placeholder="NHẬP TÊN SẠP..." 
+                   onkeyup="managerSearch()"
+                   oninput="this.value = this.value.toUpperCase()">
+            <div id="search-results" class="search-list">
+                <p style="text-align:center; color:#999;">Nhập tên để tìm...</p>
+            </div>
+            <button onclick="closeModal('search-modal')" class="close-btn">Đóng</button>
+        </div>
+    </div>
+
+    <div id="reset-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="text-align: center; color: #dc3545; margin-top: 0;">⚠️ Quản lý dữ liệu</h3>
+            <div id="reset-user-list" style="margin-bottom: 15px;"></div>
+            
+            <button onclick="triggerResetAll()" style="width:100%; background:#dc3545; color:white; padding:12px; border:none; border-radius:6px; font-weight:bold;">☢️ XÓA SẠCH DỮ LIỆU</button>
+            
+            <button onclick="closeModal('reset-modal')" class="close-btn">Đóng</button>
+        </div>
+    </div>
+
+    <div id="manager-area" class="box hidden">
+        <h4 style="margin:0 0 10px 0;">🛠️ Công cụ Quản lý</h4>
+        
+        <div style="margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
+            <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="width: 70%;">
+            <button onclick="handleFileUpload()" class="btn-mini" style="background: #007bff;">Upload Excel</button>
+            <div id="upload-status" style="font-size: 14px; margin-top: 8px; min-height: 20px;"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button onclick="openSearchModal()" style="flex:1; background:#17a2b8; color:white; border:none; padding:10px; border-radius:6px;">🔍 Tìm kiếm</button>
+            <button onclick="openResetMenu()" style="flex:1; background:#dc3545; color:white; border:none; padding:10px; border-radius:6px;">🗑️ Xóa tour</button>
+        </div>
+    </div>
+
+    <div id="login-screen" class="box">
+        <h3 style="text-align: center; margin: 10px 0;">Chọn Vai Trò</h3>
+        <div class="user-grid">
+            <button class="user-btn" onclick="selectUser('Tí em')">Tí Em</button>
+            <button class="user-btn" onclick="selectUser('Nhóc')">Nhóc</button>
+            <button class="user-btn" onclick="selectUser('Hưng')">Hưng</button>
+            <button class="user-btn" onclick="selectUser('Khang')">Khang</button>
+
+            <button class="user-btn" onclick="checkManagerLogin()" style="background: #6f42c1;">TÍ ĐÔ</button>
+        </div>
+        <div style="text-align: center; margin-top: 25px;">
+            <button onclick="viewResultMode()" style="background: transparent; border: 1px solid #999; padding: 8px 15px; border-radius: 20px; color: #666;">Chỉ xem kết quả ➜</button>
+        </div>
+    </div>
+
+    <div id="input-screen" class="hidden">
+        <div class="box" style="padding: 12px;">
+           <div class="input-header">
+    <div>User: <strong style="color: #007bff;"><span id="current-user-display"></span></strong></div>
+    <div style="display: flex; gap: 5px;">
+        <button onclick="openHistoryModal()" class="btn-mini" style="background: #ffc107; color: #333;">📜 Lịch sử</button>
+        
+        <button onclick="window.location.href='ap.html'" class="btn-mini" style="background: #6f42c1; color: white;">📍 Chấm công</button>
+        
+        <button onclick="viewResultMode()" class="btn-mini" style="background: #6c757d;">Xem KQ</button>
+    </div>
+</div>
+            
+            <!-- <div class="input-row">
+                <input type="text" id="inp-name" class="name-input uppercase-input" 
+                       placeholder="TÊN KHÁCH" 
+                       oninput="this.value = this.value.toUpperCase()" 
+                       autocomplete="off">
+                <input type="number" id="inp-qty" class="qty-input" placeholder="SL" pattern="\d*">
+            </div> -->
+            <div class="input-row">
+                <input type="text" id="inp-name" class="name-input uppercase-input" 
+                    placeholder="TÊN SẠP" 
+                     oninput="this.value = this.value.toUpperCase()" 
+                     autocomplete="off">
+           
+                 <input type="number" id="inp-qty" class="qty-input" placeholder="SL" pattern="\d*">
+    
+            <button class="btn-quick-add" onclick="nextRow()">TIẾP</button>
+         </div>
+        </div>
+
+        <h4 style="margin-left: 5px;">Chờ gửi (<span id="pending-count">0</span> dòng):</h4>
+        <div id="review-area"></div>
+
+        <div class="action-bar">
+            <button class="big-btn btn-next" onclick="nextRow()">TIẾP (Thêm dòng)</button>
+            <button class="big-btn btn-submit" onclick="submitData()">GỬI DỮ LIỆU</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <button onclick="backToInput()" style="flex: 4; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: bold;">🔙 Quay lại</button>
+    <button onclick="location.reload()" style="flex: 1; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center;">
+        🔄
+    </button>
+</div>
+        <div class="box stats-box">
+            <h4 style="margin-top: 0;">🏆 những người đã nhập</h4>
+            <ul id="stats-list" class="stats-list">Đang tải...</ul>
+        </div>
+
+
+<div id="excel-info-box" class="box" style="background: #e3f2fd; border: 1px solid #90caf9; display: none;">
+    <div style="display: flex; justify-content: space-around; text-align: center;">
+        <div>
+            <div style="font-size: 12px; color: #666;"></div>
+            <strong id="display-c3" style="color: #1976d2; font-size: 16px;">-</strong>
+        </div>
+        <div style="border-left: 1px solid #bbdefb;"></div>
+        <div>
+            <div style="font-size: 12px; color: #666;"></div>
+            <strong id="display-c4" style="color: #1976d2; font-size: 16px;">-</strong>
+        </div>
+    </div>
+</div>
+
+
+
+        <div class="box" style="padding: 0; overflow: hidden;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="padding-left: 15px;">Tên</th>
+                        <th width="15%" align="center">Gốc</th>
+                        <th width="15%" align="center">Nhập</th>
+                        <th width="20%" align="center">Kết quả</th>
+                    </tr>
+                </thead>
+                <tbody id="comparison-body"></tbody>
+            </table>
+        </div>
+        <div style="height: 50px;"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // CẤU HÌNH CỦA BẠN
+        const firebaseConfig = {
+            apiKey: "AIzaSyBAzSIQ-Av62DYFtO5jo8ZuVsK6suNNQzI",
+            authDomain: "baocuoc.firebaseapp.com",
+            databaseURL: "https://baocuoc-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "baocuoc",
+            storageBucket: "baocuoc.firebasestorage.app",
+            messagingSenderId: "476594227189",
+            appId: "1:476594227189:web:5e7db15eefddcda05342bc",
+            measurementId: "G-HZNNHHNYW9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const REF_MASTER = "master_data";
+        const REF_INPUT = "input_data";
+        const MANAGER_PASS = "2308";
+
+        let currentUser = "";
+        let pendingData = [];
+        let localMasterData = [];
+        let localInputData = [];
+        
+        // Biến trạng thái: Popup Password đang dùng để làm gì?
+        // 'LOGIN': Đăng nhập quản lý
+        // 'RESET': Xóa sạch dữ liệu
+        let passwordAction = 'LOGIN'; 
+
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+        
+        // --- 1. XỬ LÝ MẬT KHẨU CHUNG ---
+        window.checkManagerLogin = () => {
+            passwordAction = 'LOGIN';
+            document.getElementById('password-title').innerText = "🔒 Đăng nhập ";
+            document.getElementById('manager-password').value = '';
+            document.getElementById('password-modal').classList.remove('hidden');
+            document.getElementById('manager-password').focus();
+        };
+
+        window.triggerResetAll = () => {
+            passwordAction = 'RESET';
+            document.getElementById('password-title').innerText = "⚠️ Xác nhận Xóa dữ liệu";
+            document.getElementById('manager-password').value = '';
+            document.getElementById('password-modal').classList.remove('hidden');
+            document.getElementById('manager-password').focus();
+        };
+
+        // Hàm xử lý khi bấm nút "Xác nhận" trên popup password
+        window.handlePasswordSubmit = () => {
+            const pass = document.getElementById('manager-password').value;
+            
+            if (pass !== MANAGER_PASS) {
+                alert("❌ Mật khẩu không đúng!");
+                return;
+            }
+
+            // Nếu mật khẩu đúng, kiểm tra xem đang làm hành động gì
+            window.closeModal('password-modal');
+            
+            if (passwordAction === 'LOGIN') {
+                // Thực hiện đăng nhập
+                currentUser = "Tí Đô";
+                document.getElementById('current-user-display').innerText = "Tí Đô";
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('input-screen').classList.remove('hidden');
+                document.getElementById('manager-area').classList.remove('hidden');
+            } 
+            else if (passwordAction === 'RESET') {
+                // Thực hiện xóa dữ liệu
+                doResetAllData();
+            }
+        };
+
+        // --- 2. CÁC HÀM ĐIỀU HƯỚNG ---
+        window.selectUser = (name) => {
+            currentUser = name;
+            document.getElementById('current-user-display').innerText = name;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('input-screen').classList.remove('hidden');
+            document.getElementById('manager-area').classList.add('hidden');
+            document.getElementById('inp-name').focus();
+        };
+
+        window.viewResultMode = () => {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('input-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            renderTable();
+        };
+
+        window.backToInput = () => {
+            document.getElementById('result-screen').classList.add('hidden');
+            if(currentUser) document.getElementById('input-screen').classList.remove('hidden');
+            else document.getElementById('login-screen').classList.remove('hidden');
+        };
+
+        // --- 3. INPUT (BATCH) ---
+        window.nextRow = () => {
+            const name = document.getElementById('inp-name').value.trim().toUpperCase();
+            const qty = document.getElementById('inp-qty').value;
+            if(!name || !qty) return alert("Thiếu thông tin!");
+            
+            pendingData.push({ receiver: name, quantity: parseInt(qty) });
+            renderReview();
+            document.getElementById('inp-name').value = '';
+            document.getElementById('inp-qty').value = '';
+            document.getElementById('inp-name').focus();
+        };
+
+        window.submitData = async () => {
+            if(pendingData.length === 0) return alert("tour trống!");
+            const btn = document.querySelector('.btn-submit');
+            btn.innerText = "Đang gửi..."; btn.disabled = true;
+
+            try {
+                const totalQty = pendingData.reduce((sum, item) => sum + item.quantity, 0);
+                const batchPayload = {
+                    checkerName: currentUser,
+                    timestamp: Date.now(),
+                    items: pendingData,
+                    totalBatchQty: totalQty
+                };
+
+                const newRef = push(ref(db, REF_INPUT));
+                await set(newRef, batchPayload);
+
+                pendingData = [];
+                renderReview();
+                viewResultMode(); 
+            } catch(e) {
+                alert("Lỗi: " + e.message);
+            } finally {
+                btn.innerText = "GỬI DỮ LIỆU"; btn.disabled = false;
+            }
+        };
+
+        function renderReview() {
+            const area = document.getElementById('review-area');
+            document.getElementById('pending-count').innerText = pendingData.length;
+            area.innerHTML = '';
+            pendingData.forEach((item, idx) => {
+                area.innerHTML += `
+                    <div class="review-item">
+                        <div style="flex:1">${item.receiver} - <b style="color:#007bff">${item.quantity}</b></div>
+                        <div><button class="btn-mini btn-del" onclick="deleteRow(${idx})">✕</button></div>
+                    </div>`;
+            });
+            area.scrollTop = area.scrollHeight;
+        }
+        window.deleteRow = (i) => { pendingData.splice(i, 1); renderReview(); };
+
+        // --- 4. LỊCH SỬ ---
+        window.openHistoryModal = () => {
+            const listDiv = document.getElementById('history-list');
+            listDiv.innerHTML = '';
+            
+            let myBatches = localInputData.filter(d => d.checkerName === currentUser);
+            let sortedAsc = [...myBatches].sort((a,b) => a.timestamp - b.timestamp);
+            let batchIndexMap = new Map();
+            sortedAsc.forEach((batch, idx) => batchIndexMap.set(batch.id, idx + 1));
+            
+            let sortedDesc = [...sortedAsc].reverse();
+
+            if(sortedDesc.length === 0) {
+                listDiv.innerHTML = '<p style="text-align:center; color:#999">Chưa có tour nhập.</p>';
+            } else {
+                sortedDesc.forEach(batch => {
+                    const idx = batchIndexMap.get(batch.id);
+                    let itemsHtml = '';
+                    if (batch.items) {
+                        batch.items.forEach(item => {
+                            itemsHtml += `<div class="batch-row"><span>${item.receiver}</span><b>${item.quantity} thùng</b></div>`;
+                        });
+                    }
+                    listDiv.innerHTML += `
+                        <div class="history-batch">
+                            <div class="batch-header">
+                                <span>tour ${idx}</span>
+                                <span>Tổng: ${batch.totalBatchQty} thùng</span>
+                            </div>
+                            <div class="batch-body">${itemsHtml}</div>
+                        </div>`;
+                });
+            }
+            document.getElementById('history-modal').classList.remove('hidden');
+        };
+
+        // --- 5. TÌM KIẾM ---
+        window.openSearchModal = () => {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results').innerHTML = '<p style="text-align:center;color:#999">...</p>';
+            document.getElementById('search-modal').classList.remove('hidden');
+            document.getElementById('search-input').focus();
+        };
+
+        window.managerSearch = () => {
+            const k = document.getElementById('search-input').value.trim().toUpperCase();
+            const res = document.getElementById('search-results');
+            res.innerHTML = '';
+            if(!k) return;
+
+            let userBatchMap = {};
+            let sortedBatches = [...localInputData].sort((a,b) => a.timestamp - b.timestamp);
+            sortedBatches.forEach(b => {
+                if(!userBatchMap[b.checkerName]) userBatchMap[b.checkerName] = [];
+                userBatchMap[b.checkerName].push(b);
+            });
+
+            [...localInputData].sort((a,b) => b.timestamp - a.timestamp).forEach(batch => {
+                if(batch.items) {
+                    const found = batch.items.find(i => i.receiver.includes(k));
+                    if(found) {
+                        const idx = userBatchMap[batch.checkerName].findIndex(b => b.id === batch.id) + 1;
+                        res.innerHTML += `
+                            <div class="search-item">
+                                <div>Khách: <b>${found.receiver}</b></div>
+                                <div style="font-size:13px; margin-top:5px;">
+                                    <span class="tag-user">${batch.checkerName}</span> 
+                                    tour <b>${idx}</b> - SL: <b>${found.quantity}</b>
+                                </div>
+                            </div>`;
+                    }
+                }
+            });
+            if(res.children.length === 0) res.innerHTML='<p style="text-align:center">Không tìm thấy.</p>';
+        }
+
+        // --- 6. REALTIME SYNC ---
+       onValue(ref(db, REF_MASTER), (snapshot) => {
+    const data = snapshot.val();
+    const infoBox = document.getElementById('excel-info-box');
+    localMasterData = [];
+
+    if (data) {
+        // Hiển thị thông tin C3, C4
+        document.getElementById('display-c3').innerText = data.info3 || "-";
+        document.getElementById('display-c4').innerText = data.info4 || "-";
+        infoBox.style.display = "block";
+
+        // Lấy danh sách chi tiết
+        localMasterData = data.details || [];
+    } else {
+        infoBox.style.display = "none";
+    }
+    
+    if(!document.getElementById('result-screen').classList.contains('hidden')) renderTable();
+});
+
+        onValue(ref(db, REF_INPUT), (snapshot) => {
+            const data = snapshot.val();
+            localInputData = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    let item = data[key];
+                    item.id = key;
+                    localInputData.push(item);
+                });
+            }
+            renderTable();
+            renderStats();
+        });
+
+        function renderTable() {
+            const mData = {};
+            localMasterData.forEach(i => {
+                const k = i.receiver.toUpperCase().trim();
+                if(!mData[k]) mData[k] = {name: i.receiver, exp:0};
+                mData[k].exp += i.expectedQuantity;
+            });
+            const iData = {};
+            localInputData.forEach(batch => {
+                if(batch.items) {
+                    batch.items.forEach(item => {
+                        const k = item.receiver.toUpperCase().trim();
+                        if(!iData[k]) iData[k] = 0;
+                        iData[k] += item.quantity;
+                    });
+                }
+            });
+            const tbody = document.getElementById('comparison-body');
+            tbody.innerHTML = '';
+            for(let k in mData) {
+                const act = iData[k] || 0;
+                const exp = mData[k].exp;
+                let st = 'OK', cls = 'status-OK';
+                if(act > exp) { st = 'DƯ'; cls = 'status-DU'; }
+                if(act < exp) { st = 'THIẾU'; cls = 'status-THIEU'; }
+                tbody.innerHTML += `<tr><td>${mData[k].name}</td><td align="center">${exp}</td><td align="center">${act}</td><td align="center" class="${cls}">${st}</td></tr>`;
+            }
+            for(let k in iData) {
+                if(!mData[k]) tbody.innerHTML += `<tr class="row-stranger"><td>${k} (Lạ)</td><td align="center">-</td><td align="center">${iData[k]}</td><td align="center" class="status-DU">DƯ</td></tr>`;
+            }
+        }
+
+        function renderStats() {
+            const stats = {}; let totalIn = 0;
+            localInputData.forEach(batch => {
+                const u = batch.checkerName || "Ẩn";
+                if(!stats[u]) stats[u] = {qty:0, count:0};
+                stats[u].qty += (batch.totalBatchQty || 0);
+                stats[u].count++;
+                totalIn += (batch.totalBatchQty || 0);
+            });
+            
+            const totalOut = localMasterData.reduce((s, i) => s + i.expectedQuantity, 0);
+            const ul = document.getElementById('stats-list');
+            ul.innerHTML = '';
+            
+            Object.keys(stats).sort((a,b)=>stats[b].qty - stats[a].qty).forEach(u => {
+                ul.innerHTML += `<li><span>👤 ${u}</span><span>Đã nhập: <b>${stats[u].qty}</b> (${stats[u].count} tour)</span></li>`;
+            });
+            const diff = totalIn - totalOut;
+            const clr = diff === 0 ? 'green' : (diff > 0 ? '#fd7e14' : '#dc3545');
+            const txt = diff > 0 ? `(Dư ${diff})` : (diff < 0 ? `(Thiếu ${Math.abs(diff)})` : '(Khớp)');
+            ul.innerHTML += `<li class="total-row"><span>TỔNG CƯỚC GỐC: ${totalOut}</span><span style="color:${clr}">ĐÃ NHẬP: ${totalIn}</span></li><li style="justify-content:center;border:none;color:${clr}">${txt}</li>`;
+        }
+
+        // --- 7. QUẢN LÝ: UPLOAD (SỬA LỖI UI) ---
+       window.handleFileUpload = async () => {
+    const fileInput = document.getElementById('excel-file');
+    const file = fileInput.files[0];
+    const status = document.getElementById('upload-status');
+    
+    if(!file) return alert("⚠️ Vui lòng chọn file!");
+    status.innerHTML = '⏳ Đang đọc...';
+    
+    const r = new FileReader();
+    r.onload = async(e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, {type:'array'});
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            
+            // Lấy thông tin từ ô C3 và C4
+            const infoC3 = sheet['C3'] ? sheet['C3'].v : "Trống";
+            const infoC4 = sheet['C4'] ? sheet['C4'].v : "Trống";
+
+            const rows = XLSX.utils.sheet_to_json(sheet, {header: "A", defval: ""});
+            const cleanData = [];
+            rows.forEach(row => {
+                const receiver = String(row['C']).trim();
+                const qty = Number(row['D']);
+                // Bắt đầu lấy từ sau các dòng thông tin (ví dụ từ dòng 5 trở đi)
+                if(receiver && receiver !== "NGƯỜI NHẬN" && !isNaN(qty) && qty > 0) {
+                    cleanData.push({ receiver: receiver.toUpperCase(), expectedQuantity: qty });
+                }
+            });
+
+            // Lưu cả dữ liệu khách và thông tin header lên Firebase
+            await set(ref(db, REF_MASTER), {
+                info3: infoC3,
+                info4: infoC4,
+                details: cleanData
+            });
+            
+            status.innerHTML = '<b style="color:green;">✅ Đã xong</b>';
+        } catch (err) {
+            status.innerHTML = '<span style="color:red;">❌ Lỗi đọc file</span>';
+        }
+    };
+    r.readAsArrayBuffer(file);
+}
+
+        // --- 8. QUẢN LÝ: RESET (DÙNG PASSWORD MODAL) ---
+        // --- 8. QUẢN LÝ: RESET (CHỌN TỪNG TOUR) ---
+window.openResetMenu = () => {
+    const users = [...new Set(localInputData.map(i => i.checkerName))];
+    const div = document.getElementById('reset-user-list');
+    div.innerHTML = '<h4 style="margin:10px 0">Chọn người nhập:</h4>';
+    
+    users.forEach(u => {
+        div.innerHTML += `
+            <button onclick="showBatchesToReset('${u}')" 
+                    style="width:100%; text-align:left; padding:12px; margin-bottom:8px; border:1px solid #ccc; border-radius:8px; background:white; font-weight:bold;">
+                👤 ${u} ➜
+            </button>`;
+    });
+    document.getElementById('reset-modal').classList.remove('hidden');
+};
+
+// Hàm mới: Hiện danh sách các Tour của người đó để chọn
+window.showBatchesToReset = (userName) => {
+    const div = document.getElementById('reset-user-list');
+    
+    // Lọc và sắp xếp tour của người này (mới nhất lên đầu)
+    let userBatches = localInputData
+        .filter(b => b.checkerName === userName)
+        .sort((a, b) => b.timestamp - a.timestamp);
+
+    div.innerHTML = `<button onclick="openResetMenu()" style="background:none; border:none; color:#007bff; padding:0; margin-bottom:10px; cursor:pointer;">⬅ Quay lại</button>`;
+    div.innerHTML += `<h4 style="margin:0 0 15px 0;">Tour của: ${userName}</h4>`;
+
+    if (userBatches.length === 0) {
+        div.innerHTML += '<p style="text-align:center; color:#999;">Không còn tour nào.</p>';
+        return;
+    }
+
+    userBatches.forEach((batch, index) => {
+        // Tính toán số thứ tự tour (tương tự phần lịch sử)
+        const tourNum = userBatches.length - index; 
+        const timeStr = new Date(batch.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        div.innerHTML += `
+            <div class="reset-batch-item">
+                <div class="reset-batch-info">
+                    <b>Tour ${tourNum}</b> (${timeStr})<br>
+                    <span style="color:#666">SL: ${batch.totalBatchQty} thùng - ${batch.items ? batch.items.length : 0} dòng</span>
+                </div>
+                <button onclick="deleteSpecificBatch('${batch.id}', '${userName}')" 
+                        class="btn-mini" style="background:#dc3545; padding:8px 12px;">Xóa</button>
+            </div>`;
+    });
+};
+
+// Hàm thực hiện xóa một tour cụ thể
+window.deleteSpecificBatch = async (batchId, userName) => {
+    if (!confirm(`Bạn có chắc muốn xóa Tour này của ${userName}?`)) return;
+    
+    try {
+        await remove(ref(db, `${REF_INPUT}/${batchId}`));
+        alert("Đã xóa tour thành công!");
+        // Load lại danh sách tour của người đó
+        showBatchesToReset(userName);
+    } catch (e) {
+        alert("Lỗi khi xóa: " + e.message);
+    }
+};
+
+// Expose thêm hàm mới ra window
+window.showBatchesToReset = showBatchesToReset;
+window.deleteSpecificBatch = deleteSpecificBatch;
+
+        // Hàm xóa tất cả (Gọi từ Modal Password)
+        async function doResetAllData() {
+            await set(ref(db, REF_INPUT), null);
+            alert("Đã XÓA SẠCH dữ liệu!");
+            window.closeModal('reset-modal');
+        }
+function resetUserData() {
+    triggerResetAll();
+}
+
+        // Expose Functions
+        window.nextRow = nextRow;
+        window.submitData = submitData;
+        window.deleteRow = deleteRow;
+        window.handleFileUpload = handleFileUpload;
+        window.resetUserData = resetUserData;
+        window.triggerResetAll = triggerResetAll; // Mới: gọi modal
+        window.handlePasswordSubmit = handlePasswordSubmit; // Mới: xử lý modal
+        window.openResetMenu = openResetMenu;
+        window.openHistoryModal = openHistoryModal;
+        window.openSearchModal = openSearchModal;
+        window.managerSearch = managerSearch;
+        window.checkManagerLogin = checkManagerLogin;
+
+
+
+
+
+
+
+        // Thêm hàm này vào phần script
+window.handleChamCong = () => {
+    // Bạn có thể đổi lệnh này thành link web hoặc hiện modal tùy ý
+    alert("Tính năng Chấm công đang được phát triển!");
+    // Ví dụ nếu muốn chuyển trang: window.location.href = 'link_cham_cong_cua_ban';
+};
+    </script>
+</body>
+</html>
