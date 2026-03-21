@@ -189,7 +189,7 @@
     <div style="display: flex; gap: 5px;">
         <button onclick="openHistoryModal()" class="btn-mini" style="background: #ffc107; color: #333;">📜 Lịch sử</button>
         
-        <button onclick="window.location.href='ap.html'" class="btn-mini" style="background: #6f42c1; color: white;">📍 Chấm công</button>
+        <!-- <button onclick="window.location.href='ap.html'" class="btn-mini" style="background: #6f42c1; color: white;">📍 Chấm công</button> -->
         
         <button onclick="viewResultMode()" class="btn-mini" style="background: #6c757d;">Xem KQ</button>
     </div>
@@ -225,10 +225,13 @@
 
     <div id="result-screen" class="hidden">
         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            
     <button onclick="backToInput()" style="flex: 4; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: bold;">🔙 Quay lại</button>
     <button onclick="location.reload()" style="flex: 1; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center;">
         🔄
     </button>
+    <button id="btn-save-history" onclick="saveResultHistory()" class="hidden" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold;">💾</button>
+<button id="btn-view-history" onclick="openResultHistoryModal()" class="hidden" style="flex: 1; padding: 12px; background: #6f42c1; color: white; border: none; border-radius: 8px; font-weight: bold;">📜</button>
 </div>
         <div class="box stats-box">
             <h4 style="margin-top: 0;">🏆 những người đã nhập</h4>
@@ -267,22 +270,41 @@
         </div>
         <div style="height: 50px;"></div>
     </div>
-
+    <div id="result-history-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 800px; width: 95%;">
+        <h3 style="text-align: center; color: #6f42c1;">📂 Lịch sử Chốt Cước</h3>
+        <div id="result-history-list">
+            </div>
+        <button onclick="closeModal('result-history-modal')" class="close-btn">Đóng</button>
+    </div>
+</div>
+</div>
+<div id="alert-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="text-align: center;">
+        <h3 id="alert-title">Thông báo</h3>
+        <p id="alert-message" style="margin-bottom: 20px; color: #666;"></p>
+        <div id="alert-actions" style="display: flex; gap: 10px;">
+            <button id="alert-cancel-btn" class="close-btn" style="margin-top:0; flex:1; background:#ccc;">Hủy</button>
+            <button id="alert-ok-btn" style="flex:1; padding:10px; background:#007bff; color:white; border:none; border-radius:6px; font-weight:bold;">Xác nhận</button>
+        </div>
+    </div>
+</div>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // CẤU HÌNH CỦA BẠN
-        const firebaseConfig = {
-            apiKey: "AIzaSyBAzSIQ-Av62DYFtO5jo8ZuVsK6suNNQzI",
-            authDomain: "baocuoc.firebaseapp.com",
-            databaseURL: "https://baocuoc-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "baocuoc",
-            storageBucket: "baocuoc.firebasestorage.app",
-            messagingSenderId: "476594227189",
-            appId: "1:476594227189:web:5e7db15eefddcda05342bc",
-            measurementId: "G-HZNNHHNYW9"
-        };
+       const firebaseConfig = {
+    apiKey: "AIzaSyCF16Ze3NczHi3B3NU2-y4QJzdx35dKpsY",
+    authDomain: "chamcong-1cbc1.firebaseapp.com",
+    databaseURL: "https://chamcong-1cbc1-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "chamcong-1cbc1",
+    storageBucket: "chamcong-1cbc1.firebasestorage.app",
+    messagingSenderId: "1037808997570",
+    appId: "1:1037808997570:web:0c3bd96af91a30edc9975b",
+    measurementId: "G-LR48BVDHY3"
+};
+
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
@@ -339,6 +361,9 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('input-screen').classList.remove('hidden');
                 document.getElementById('manager-area').classList.remove('hidden');
+
+                document.getElementById('btn-save-history').classList.remove('hidden');
+                document.getElementById('btn-view-history').classList.remove('hidden');
             } 
             else if (passwordAction === 'RESET') {
                 // Thực hiện xóa dữ liệu
@@ -353,7 +378,10 @@
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('input-screen').classList.remove('hidden');
             document.getElementById('manager-area').classList.add('hidden');
+            document.getElementById('btn-save-history').classList.add('hidden');
+            document.getElementById('btn-view-history').classList.add('hidden');
             document.getElementById('inp-name').focus();
+            
         };
 
         window.viewResultMode = () => {
@@ -708,7 +736,7 @@ window.deleteSpecificBatch = deleteSpecificBatch;
         // Hàm xóa tất cả (Gọi từ Modal Password)
         async function doResetAllData() {
             await set(ref(db, REF_INPUT), null);
-            alert("Đã XÓA SẠCH dữ liệu!");
+            await window.showCustomModal("Thông báo", "Đã XÓA SẠCH dữ liệu!");
             window.closeModal('reset-modal');
         }
 function resetUserData() {
@@ -741,6 +769,201 @@ window.handleChamCong = () => {
     alert("Tính năng Chấm công đang được phát triển!");
     // Ví dụ nếu muốn chuyển trang: window.location.href = 'link_cham_cong_cua_ban';
 };
+
+const REF_RESULT_HISTORY = "result_history";
+
+    // 1. Hàm lưu kết quả: Lấy Header C4 và danh sách người nhập
+    window.saveResultHistory = async () => {
+        const headerC4 = document.getElementById('display-c4').innerText;
+        if (!headerC4 || headerC4 === "-") {
+            return alert("⚠️ Không tìm thấy tiêu đề (ô C4). Vui lòng upload Excel trước!");
+        }
+
+       const confirmSave = await window.showCustomModal(
+    "📌 Chốt dữ liệu", 
+    `Ngày: ${headerC4}?`, 
+    true // Hiện nút Hủy (isConfirm = true)
+);
+
+if (!confirmSave) return;
+
+        // Lấy danh sách người đã nhập liệu
+        const checkers = [...new Set(localInputData.map(b => b.checkerName))];
+        
+        // Tính toán bảng so sánh (Gốc vs Nhập)
+        const mData = {};
+        localMasterData.forEach(i => {
+            const k = i.receiver.toUpperCase().trim();
+            if(!mData[k]) mData[k] = {name: i.receiver, exp:0};
+            mData[k].exp += i.expectedQuantity;
+        });
+        
+        const iData = {};
+        localInputData.forEach(batch => {
+            if(batch.items) {
+                batch.items.forEach(item => {
+                    const k = item.receiver.toUpperCase().trim();
+                    if(!iData[k]) iData[k] = 0;
+                    iData[k] += item.quantity;
+                });
+            }
+        });
+
+        const finalSnap = [];
+        for(let k in mData) {
+            finalSnap.push({ name: mData[k].name, exp: mData[k].exp, act: iData[k] || 0 });
+        }
+        for(let k in iData) {
+            if(!mData[k]) finalSnap.push({ name: k + " (Lạ)", exp: 0, act: iData[k] });
+        }
+
+        const now = Date.now();
+        const payload = {
+            title: headerC4, // Sử dụng dữ liệu ô C4
+            checkers: checkers, // Danh sách tên người nhập
+            timestamp: now,
+            dateStr: new Date(now).toLocaleString(),
+            details: finalSnap
+        };
+
+        try {
+            // Tạo khóa an toàn và duy nhất: tiêu đề đã sanitize + timestamp
+            const safeBase = headerC4.replace(/[.#$[\]]/g, "_");
+            const safeKey = `${safeBase}_${now}`;
+            await set(ref(db, `${REF_RESULT_HISTORY}/${safeKey}`), payload);
+            await window.showCustomModal("Thành công");
+        } catch (e) {
+            await window.showCustomModal("Lỗi", "Lỗi khi lưu: " + e.message);
+        }
+    };
+
+    // Utility: sanitize key for DOM id
+    function sanitizeId(key) {
+        return `detail_${String(key).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    }
+
+    // 2. Hàm mở lịch sử: Hiển thị dạng danh sách chọn (tổng quát, 1 listener mỗi lần mở)
+    window.openResultHistoryModal = () => {
+        onValue(ref(db, REF_RESULT_HISTORY), (snapshot) => {
+            const data = snapshot.val();
+            const listDiv = document.getElementById('result-history-list');
+            listDiv.innerHTML = '';
+
+            if (!data) {
+                listDiv.innerHTML = '<p style="text-align:center; color:#999;">Chưa có dữ liệu lịch sử.</p>';
+            } else {
+                // Sắp xếp mới nhất lên đầu (keys chứa timestamp suffix)
+                const sortedKeys = Object.keys(data).sort((a,b)=>{
+                    const ta = data[a].timestamp || 0;
+                    const tb = data[b].timestamp || 0;
+                    return tb - ta;
+                });
+
+                sortedKeys.forEach(key => {
+                    const record = data[key];
+                    const checkerList = record.checkers ? record.checkers.join(", ") : "Không rõ";
+                    const dateStr = record.dateStr || (record.timestamp ? new Date(record.timestamp).toLocaleString() : 'Không rõ');
+                    const detailId = sanitizeId(key);
+
+                    // Build table rows safely
+                    let tableRows = '';
+                    (record.details || []).forEach(row => {
+                        const status = row.act === row.exp ? 'Khớp' : (row.act > row.exp ? 'Dư' : 'Thiếu');
+                        const color = row.act === row.exp ? '#28a745' : (row.act > row.exp ? '#fd7e14' : '#dc3545');
+                        tableRows += `
+                            <tr>
+                                <td>${row.name}</td>
+                                <td align="center">${row.exp}</td>
+                                <td align="center">${row.act}</td>
+                                <td align="center" style="color:${color}">${status}</td>
+                            </tr>`;
+                    });
+
+                    listDiv.innerHTML += `
+                        <div class="box" style="border-left: 5px solid #6f42c1; margin-bottom: 10px; padding: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap:10px;">
+                                <div style="flex:1; min-width:0">
+                                    <strong style="font-size: 16px; color: #333; display:block;">📅 ${record.title}</strong>
+                                    <div style="font-size: 13px; color: #666; margin-top: 5px;">${dateStr}<br>👤 Người nhập: <span style="color: #007bff;">${checkerList}</span></div>
+                                </div>
+                                <div style="display:flex; gap:8px; align-items:flex-start">
+                                    <button onclick="toggleHistoryDetail('${key}')" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xem chi tiết</button>
+                                    <button onclick="deleteHistoryRecord('${key}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xóa</button>
+                                </div>
+                            </div>
+
+                            <div id="${detailId}" class="hidden" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; overflow-x: auto;">
+                                <table style="width:100%; font-size:13px;">
+                                    <thead style="background:#f8f9fa;"><tr><th>Tên Khách</th><th>Gốc</th><th>Nhập</th><th>KQ</th></tr></thead>
+                                    <tbody>${tableRows}</tbody>
+                                </table>
+                            </div>
+                        </div>`;
+                });
+            }
+        }, { onlyOnce: true });
+
+        document.getElementById('result-history-modal').classList.remove('hidden');
+    };
+
+    // Hàm bổ trợ: Ẩn hiện chi tiết (dùng sanitizeId để tìm element)
+    window.toggleHistoryDetail = (key) => {
+        const id = sanitizeId(key);
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('hidden');
+    };
+
+    // Hàm xóa một bản ghi lịch sử (chung, duy nhất)
+    window.deleteHistoryRecord = async (key) => {
+        const confirmDelete = await window.showCustomModal(
+        "⚠️ Xác nhận xóa", 
+        "Bạn có chắc muốn xóa vĩnh viễn dữ liệu đợt này không?", 
+        true
+    );
+    
+    if (!confirmDelete) return;
+        try {
+            await remove(ref(db, `${REF_RESULT_HISTORY}/${key}`));
+            await window.showCustomModal("Thành công", "Đã xóa dữ liệu chốt.");
+            // Refresh modal content
+            window.openResultHistoryModal();
+        } catch (e) {
+            await window.showCustomModal("Lỗi", 'Lỗi khi xóa: ' + e.message);
+        }
+    };
+
+
+// Hàm hiển thị Popup thay thế cho alert và confirm
+window.showCustomModal = (title, message, isConfirm = false) => {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('alert-modal');
+        const titleEl = document.getElementById('alert-title');
+        const msgEl = document.getElementById('alert-message');
+        const okBtn = document.getElementById('alert-ok-btn');
+        const cancelBtn = document.getElementById('alert-cancel-btn');
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        
+        // Nếu là alert (không phải confirm) thì ẩn nút Hủy
+        cancelBtn.style.display = isConfirm ? 'block' : 'none';
+        
+        modal.classList.remove('hidden');
+
+        okBtn.onclick = () => {
+            modal.classList.add('hidden');
+            resolve(true);
+        };
+
+        cancelBtn.onclick = () => {
+            modal.classList.add('hidden');
+            resolve(false);
+        };
+    });
+};
+
+
     </script>
 </body>
 </html>
