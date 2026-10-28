@@ -110,6 +110,23 @@
 </head>
 <body>
 
+
+
+    <!-- Modal Xem Log Hệ Thống -->
+    <div id="log-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 650px; width: 95%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin: 0; color: #17a2b8; font-size:16px;">📋 Nhật ký Hệ Thống (Log)</h3>
+                <button onclick="copyLogsToClipboard()" class="btn-mini" style="background:#28a745; padding:6px 10px;">Sao chép log</button>
+            </div>
+            <div id="log-container" style="background:#1e1e1e; color:#d4d4d4; font-family:Consolas, 'Courier New', monospace; font-size:12px; padding:10px; border-radius:6px; max-height:48vh; overflow-y:auto; line-height:1.6; white-space:pre-wrap; word-break:break-all;"></div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+                <button onclick="clearLogs()" class="btn-mini" style="flex:1; background:#dc3545; padding:8px;">Xóa log</button>
+                <button onclick="closeModal('log-modal')" class="close-btn" style="flex:2; margin-top:0;">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <div id="password-modal" class="modal-overlay hidden">
         <div class="modal-content" style="text-align: center;">
             <h3 id="password-title">🔒 Mật khẩu</h3>
@@ -161,9 +178,10 @@
             <div id="upload-status" style="font-size: 14px; margin-top: 8px; min-height: 20px;"></div>
         </div>
 
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 8px;">
             <button onclick="openSearchModal()" style="flex:1; background:#17a2b8; color:white; border:none; padding:10px; border-radius:6px;">🔍 Tìm kiếm</button>
             <button onclick="openResetMenu()" style="flex:1; background:#dc3545; color:white; border:none; padding:10px; border-radius:6px;">🗑️ Xóa tour</button>
+            <button onclick="openLogModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:10px; border-radius:6px;">📋 Log</button>
         </div>
     </div>
 
@@ -179,6 +197,9 @@
         </div>
         <div style="text-align: center; margin-top: 25px;">
             <button onclick="viewResultMode()" style="background: transparent; border: 1px solid #999; padding: 8px 15px; border-radius: 20px; color: #666;">Chỉ xem kết quả ➜</button>
+        </div>
+        <div style="text-align: center; margin-top: 15px;">
+            <button onclick="openLogModal()" style="background:none; border:none; color:#007bff; font-size:13px; cursor:pointer; text-decoration:underline;">📋 Xem nhật ký kết nối (Log)</button>
         </div>
     </div>
 
@@ -278,7 +299,6 @@
         <button onclick="closeModal('result-history-modal')" class="close-btn">Đóng</button>
     </div>
 </div>
-</div>
 <div id="alert-modal" class="modal-overlay hidden">
     <div class="modal-content" style="text-align: center;">
         <h3 id="alert-title">Thông báo</h3>
@@ -293,34 +313,103 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // CẤU HÌNH CỦA BẠN
-       const firebaseConfig = {
-    apiKey: "AIzaSyCF16Ze3NczHi3B3NU2-y4QJzdx35dKpsY",
-    authDomain: "chamcong-1cbc1.firebaseapp.com",
-    databaseURL: "https://chamcong-1cbc1-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "chamcong-1cbc1",
-    storageBucket: "chamcong-1cbc1.firebasestorage.app",
-    messagingSenderId: "1037808997570",
-    appId: "1:1037808997570:web:0c3bd96af91a30edc9975b",
-    measurementId: "G-LR48BVDHY3"
-};
+        // CẤU HÌNH CSDL FIREBASE MỚI
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUx8FVx4uUUper36ONs0amSC9zgeR55pg",
+            authDomain: "actw-e8828.firebaseapp.com",
+            databaseURL: "https://actw-e8828-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "actw-e8828",
+            storageBucket: "actw-e8828.firebasestorage.app",
+            messagingSenderId: "526382369405",
+            appId: "1:526382369405:web:3ce11268c1718572ec7f14",
+            measurementId: "G-LXVFY1T3EP"
+        };
 
+        // --- HỆ THỐNG GHI NHẬT KÝ (LOGGING) & THEO DÕI LỖI ---
+        const systemLogs = [];
+        function addLog(type, msg, detail = null) {
+            const time = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+            const logStr = `[${time}] ${prefix} ${msg}`;
+            if (type === 'error') console.error(logStr, detail || '');
+            else if (type === 'warn') console.warn(logStr, detail || '');
+            else console.log(logStr, detail || '');
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+            systemLogs.push({ 
+                time, 
+                type, 
+                msg, 
+                detail: detail ? (detail.message || (typeof detail === 'object' ? JSON.stringify(detail) : String(detail))) : null 
+            });
+            if (systemLogs.length > 250) systemLogs.shift();
+            renderLogUI();
+        }
+
+        function renderLogUI() {
+            const box = document.getElementById('log-container');
+            if (!box) return;
+            box.innerHTML = systemLogs.map(l => {
+                const color = l.type === 'error' ? '#ff6b6b' : l.type === 'warn' ? '#ffd166' : l.type === 'success' ? '#06d6a0' : '#4cc9f0';
+                return `<div style="margin-bottom:6px;"><span style="color:#888;">[${l.time}]</span> <span style="color:${color}; font-weight:bold;">[${l.type.toUpperCase()}]</span> ${escapeHtml(l.msg)}${l.detail ? '<br><span style="color:#ff8787; font-size:11px; margin-left:15px; display:inline-block;">Chi tiết: ' + escapeHtml(l.detail) + '</span>' : ''}</div>`;
+            }).join('');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        window.openLogModal = () => {
+            renderLogUI();
+            document.getElementById('log-modal').classList.remove('hidden');
+        };
+
+        window.clearLogs = () => {
+            systemLogs.length = 0;
+            addLog('info', 'Đã làm mới danh sách log.');
+        };
+
+        window.copyLogsToClipboard = async () => {
+            if (systemLogs.length === 0) return alert('Chưa có log nào!');
+            const text = systemLogs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.msg}${l.detail ? ' | ' + l.detail : ''}`).join('\n');
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+                alert('Đã sao chép toàn bộ nhật ký vào clipboard!');
+            } catch(e) {
+                alert('Lỗi sao chép: ' + e.message);
+            }
+        };
+
+        // Ghi log khởi tạo
+        addLog('info', 'Khởi tạo ứng dụng với Project: ' + firebaseConfig.projectId + ' (' + firebaseConfig.databaseURL + ')');
+
+        let app, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+            addLog('success', 'Đã khởi tạo Firebase SDK thành công.');
+        } catch (e) {
+            addLog('error', 'Lỗi khởi tạo Firebase SDK: ' + e.message, e);
+        }
 
         const REF_MASTER = "master_data";
         const REF_INPUT = "input_data";
+        const REF_RESULT_HISTORY = "result_history";
         const MANAGER_PASS = "2308";
 
         let currentUser = "";
         let pendingData = [];
         let localMasterData = [];
         let localInputData = [];
-        
-        // Biến trạng thái: Popup Password đang dùng để làm gì?
-        // 'LOGIN': Đăng nhập quản lý
-        // 'RESET': Xóa sạch dữ liệu
         let passwordAction = 'LOGIN'; 
 
         window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
@@ -342,21 +431,20 @@
             document.getElementById('manager-password').focus();
         };
 
-        // Hàm xử lý khi bấm nút "Xác nhận" trên popup password
         window.handlePasswordSubmit = () => {
             const pass = document.getElementById('manager-password').value;
             
             if (pass !== MANAGER_PASS) {
+                addLog('warn', 'Nhập sai mật khẩu quản lý.');
                 alert("❌ Mật khẩu không đúng!");
                 return;
             }
 
-            // Nếu mật khẩu đúng, kiểm tra xem đang làm hành động gì
             window.closeModal('password-modal');
             
             if (passwordAction === 'LOGIN') {
-                // Thực hiện đăng nhập
                 currentUser = "Tí Đô";
+                addLog('info', 'Đăng nhập vai trò quản lý (Tí Đô) thành công.');
                 document.getElementById('current-user-display').innerText = "Tí Đô";
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('input-screen').classList.remove('hidden');
@@ -366,7 +454,6 @@
                 document.getElementById('btn-view-history').classList.remove('hidden');
             } 
             else if (passwordAction === 'RESET') {
-                // Thực hiện xóa dữ liệu
                 doResetAllData();
             }
         };
@@ -374,6 +461,7 @@
         // --- 2. CÁC HÀM ĐIỀU HƯỚNG ---
         window.selectUser = (name) => {
             currentUser = name;
+            addLog('info', 'Đã chọn người nhập: ' + name);
             document.getElementById('current-user-display').innerText = name;
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('input-screen').classList.remove('hidden');
@@ -381,7 +469,6 @@
             document.getElementById('btn-save-history').classList.add('hidden');
             document.getElementById('btn-view-history').classList.add('hidden');
             document.getElementById('inp-name').focus();
-            
         };
 
         window.viewResultMode = () => {
@@ -416,6 +503,7 @@
             btn.innerText = "Đang gửi..."; btn.disabled = true;
 
             try {
+                addLog('info', `User [${currentUser}] đang gửi đợt nhập gồm ${pendingData.length} mục lên Firebase...`);
                 const totalQty = pendingData.reduce((sum, item) => sum + item.quantity, 0);
                 const batchPayload = {
                     checkerName: currentUser,
@@ -426,11 +514,13 @@
 
                 const newRef = push(ref(db, REF_INPUT));
                 await set(newRef, batchPayload);
+                addLog('success', `Đã lưu thành công tour nhập của [${currentUser}] (Tổng: ${totalQty} thùng).`);
 
                 pendingData = [];
                 renderReview();
                 viewResultMode(); 
             } catch(e) {
+                addLog('error', `Lỗi khi lưu tour nhập của [${currentUser}]: ` + e.message, e);
                 alert("Lỗi: " + e.message);
             } finally {
                 btn.innerText = "GỬI DỮ LIỆU"; btn.disabled = false;
@@ -526,42 +616,78 @@
                 }
             });
             if(res.children.length === 0) res.innerHTML='<p style="text-align:center">Không tìm thấy.</p>';
+        };
+
+        // --- 6. REALTIME SYNC & GIÁM SÁT KẾT NỐI ---
+        if (db) {
+            // Lắng nghe trạng thái kết nối tới máy chủ Firebase
+            onValue(ref(db, '.info/connected'), (snapshot) => {
+                const connected = snapshot.val() === true;
+                const statusPill = document.getElementById('connection-status-pill');
+                if (connected) {
+                    addLog('success', 'Đã kết nối máy chủ Firebase RTDB: ' + firebaseConfig.databaseURL);
+                    if (statusPill) statusPill.innerHTML = '<span style="color:#28a745; font-weight:bold;">🟢 CSDL đã kết nối</span>';
+                } else {
+                    addLog('warn', 'Mất kết nối máy chủ Firebase (đang tự động kết nối lại...)');
+                    if (statusPill) statusPill.innerHTML = '<span style="color:#dc3545; font-weight:bold;">🔴 Mất kết nối CSDL</span>';
+                }
+            });
+
+            // Lắng nghe dữ liệu cước gốc (Master Data)
+            onValue(ref(db, REF_MASTER), (snapshot) => {
+                const data = snapshot.val();
+                const infoBox = document.getElementById('excel-info-box');
+                localMasterData = [];
+
+                if (data) {
+                    // Hiển thị thông tin C3, C4
+                    document.getElementById('display-c3').innerText = data.info3 || "-";
+                    document.getElementById('display-c4').innerText = data.info4 || "-";
+                    infoBox.style.display = "block";
+
+                    // Lấy danh sách chi tiết
+                    localMasterData = data.details || [];
+                    addLog('info', `Nhận Master Data: ${localMasterData.length} dòng cước gốc. C3: "${data.info3 || ''}", C4: "${data.info4 || ''}"`);
+                } else {
+                    infoBox.style.display = "none";
+                    addLog('warn', 'Master Data (cước gốc) chưa có trong CSDL mới. Quản lý cần Upload file Excel.');
+                }
+                
+                updatePillStats();
+                if(!document.getElementById('result-screen').classList.contains('hidden')) renderTable();
+            }, (error) => {
+                addLog('error', 'Lỗi tải Master Data từ Firebase: ' + error.message, error);
+            });
+
+            // Lắng nghe dữ liệu nhập từ người dùng (Input Data)
+            onValue(ref(db, REF_INPUT), (snapshot) => {
+                const data = snapshot.val();
+                localInputData = [];
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        let item = data[key];
+                        item.id = key;
+                        localInputData.push(item);
+                    });
+                    const totalItems = localInputData.reduce((s, b) => s + (b.items ? b.items.length : 0), 0);
+                    addLog('info', `Nhận Input Data: ${localInputData.length} tour đã nhập (${totalItems} mục).`);
+                } else {
+                    addLog('info', 'Input Data (dữ liệu nhập) hiện đang trống.');
+                }
+                updatePillStats();
+                renderTable();
+                renderStats();
+            }, (error) => {
+                addLog('error', 'Lỗi tải Input Data từ Firebase: ' + error.message, error);
+            });
         }
 
-        // --- 6. REALTIME SYNC ---
-       onValue(ref(db, REF_MASTER), (snapshot) => {
-    const data = snapshot.val();
-    const infoBox = document.getElementById('excel-info-box');
-    localMasterData = [];
-
-    if (data) {
-        // Hiển thị thông tin C3, C4
-        document.getElementById('display-c3').innerText = data.info3 || "-";
-        document.getElementById('display-c4').innerText = data.info4 || "-";
-        infoBox.style.display = "block";
-
-        // Lấy danh sách chi tiết
-        localMasterData = data.details || [];
-    } else {
-        infoBox.style.display = "none";
-    }
-    
-    if(!document.getElementById('result-screen').classList.contains('hidden')) renderTable();
-});
-
-        onValue(ref(db, REF_INPUT), (snapshot) => {
-            const data = snapshot.val();
-            localInputData = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    let item = data[key];
-                    item.id = key;
-                    localInputData.push(item);
-                });
+        function updatePillStats() {
+            const countEl = document.getElementById('data-count-pill');
+            if (countEl) {
+                countEl.innerText = `Gốc: ${localMasterData.length} | Nhập: ${localInputData.length} tour`;
             }
-            renderTable();
-            renderStats();
-        });
+        }
 
         function renderTable() {
             const mData = {};
@@ -582,6 +708,18 @@
             });
             const tbody = document.getElementById('comparison-body');
             tbody.innerHTML = '';
+
+            const hasMaster = Object.keys(mData).length > 0;
+            const hasInput = Object.keys(iData).length > 0;
+
+            if (!hasMaster && !hasInput) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:25px; color:#6c757d; line-height:1.6;">
+                    ⚠️ <b>Chưa có dữ liệu cước gốc trong CSDL mới</b><br>
+                    <span style="font-size:12px; color:#888;">Quản lý đăng nhập <b>TÍ ĐÔ</b> ➔ <b>Upload Excel</b> để nạp bảng cước</span>
+                </td></tr>`;
+                return;
+            }
+
             for(let k in mData) {
                 const act = iData[k] || 0;
                 const exp = mData[k].exp;
@@ -609,6 +747,11 @@
             const ul = document.getElementById('stats-list');
             ul.innerHTML = '';
             
+            if (Object.keys(stats).length === 0 && localMasterData.length === 0) {
+                ul.innerHTML = '<li style="justify-content:center; color:#888; border:none; padding:10px 0;">Chưa có dữ liệu cước gốc và tour nhập nào.</li>';
+                return;
+            }
+
             Object.keys(stats).sort((a,b)=>stats[b].qty - stats[a].qty).forEach(u => {
                 ul.innerHTML += `<li><span>👤 ${u}</span><span>Đã nhập: <b>${stats[u].qty}</b> (${stats[u].count} tour)</span></li>`;
             });
@@ -618,352 +761,353 @@
             ul.innerHTML += `<li class="total-row"><span>TỔNG CƯỚC GỐC: ${totalOut}</span><span style="color:${clr}">ĐÃ NHẬP: ${totalIn}</span></li><li style="justify-content:center;border:none;color:${clr}">${txt}</li>`;
         }
 
-        // --- 7. QUẢN LÝ: UPLOAD (SỬA LỖI UI) ---
-       window.handleFileUpload = async () => {
-    const fileInput = document.getElementById('excel-file');
-    const file = fileInput.files[0];
-    const status = document.getElementById('upload-status');
-    
-    if(!file) return alert("⚠️ Vui lòng chọn file!");
-    status.innerHTML = '⏳ Đang đọc...';
-    
-    const r = new FileReader();
-    r.onload = async(e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const wb = XLSX.read(data, {type:'array'});
-            const sheet = wb.Sheets[wb.SheetNames[0]];
+        // --- 7. QUẢN LÝ: UPLOAD EXCEL ---
+        window.handleFileUpload = async () => {
+            const fileInput = document.getElementById('excel-file');
+            const file = fileInput.files[0];
+            const status = document.getElementById('upload-status');
             
-            // Lấy thông tin từ ô C3 và C4
-            const infoC3 = sheet['C3'] ? sheet['C3'].v : "Trống";
-            const infoC4 = sheet['C4'] ? sheet['C4'].v : "Trống";
+            if(!file) return alert("⚠️ Vui lòng chọn file!");
+            status.innerHTML = '⏳ Đang đọc file Excel...';
+            addLog('info', `Bắt đầu đọc file Excel: "${file.name}" (${Math.round(file.size / 1024)} KB)`);
+            
+            const r = new FileReader();
+            r.onload = async(e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, {type:'array'});
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    
+                    // Lấy thông tin từ ô C3 và C4
+                    const infoC3 = sheet['C3'] ? String(sheet['C3'].v).trim() : "Trống";
+                    const infoC4 = sheet['C4'] ? String(sheet['C4'].v).trim() : "Trống";
 
-            const rows = XLSX.utils.sheet_to_json(sheet, {header: "A", defval: ""});
-            const cleanData = [];
-            rows.forEach(row => {
-                const receiver = String(row['C']).trim();
-                const qty = Number(row['D']);
-                // Bắt đầu lấy từ sau các dòng thông tin (ví dụ từ dòng 5 trở đi)
-                if(receiver && receiver !== "NGƯỜI NHẬN" && !isNaN(qty) && qty > 0) {
-                    cleanData.push({ receiver: receiver.toUpperCase(), expectedQuantity: qty });
+                    const rows = XLSX.utils.sheet_to_json(sheet, {header: "A", defval: ""});
+                    const cleanData = [];
+                    rows.forEach(row => {
+                        const receiver = String(row['C']).trim();
+                        const qty = Number(row['D']);
+                        // Bắt đầu lấy từ sau các dòng thông tin (ví dụ từ dòng 5 trở đi)
+                        if(receiver && receiver !== "NGƯỜI NHẬN" && !isNaN(qty) && qty > 0) {
+                            cleanData.push({ receiver: receiver.toUpperCase(), expectedQuantity: qty });
+                        }
+                    });
+
+                    addLog('info', `Đã phân tích Excel: ${cleanData.length} dòng hợp lệ (C3: "${infoC3}", C4: "${infoC4}"). Đang lưu lên Firebase...`);
+
+                    // Lưu cả dữ liệu khách và thông tin header lên Firebase
+                    await set(ref(db, REF_MASTER), {
+                        info3: infoC3,
+                        info4: infoC4,
+                        details: cleanData,
+                        uploadedAt: Date.now()
+                    });
+                    
+                    addLog('success', `Đã lưu thành công Master Data lên CSDL mới (${cleanData.length} dòng).`);
+                    status.innerHTML = `<b style="color:green;">✅ Đã xong (${cleanData.length} dòng)</b>`;
+                } catch (err) {
+                    addLog('error', 'Lỗi khi xử lý hoặc upload file Excel: ' + err.message, err);
+                    status.innerHTML = `<span style="color:red;">❌ Lỗi: ${err.message}</span>`;
+                }
+            };
+            r.onerror = (err) => {
+                addLog('error', 'Lỗi đọc file từ thiết bị: ' + err.message, err);
+                status.innerHTML = '<span style="color:red;">❌ Lỗi đọc file từ thiết bị</span>';
+            };
+            r.readAsArrayBuffer(file);
+        };
+
+        // --- 8. QUẢN LÝ: RESET (CHỌN TỪNG TOUR) ---
+        window.openResetMenu = () => {
+            const users = [...new Set(localInputData.map(i => i.checkerName))];
+            const div = document.getElementById('reset-user-list');
+            div.innerHTML = '<h4 style="margin:10px 0">Chọn người nhập:</h4>';
+            
+            if (users.length === 0) {
+                div.innerHTML += '<p style="text-align:center; color:#999;">Chưa có dữ liệu tour nào để xóa.</p>';
+            }
+
+            users.forEach(u => {
+                div.innerHTML += `
+                    <button onclick="showBatchesToReset('${u}')" 
+                            style="width:100%; text-align:left; padding:12px; margin-bottom:8px; border:1px solid #ccc; border-radius:8px; background:white; font-weight:bold;">
+                        👤 ${u} ➜
+                    </button>`;
+            });
+            document.getElementById('reset-modal').classList.remove('hidden');
+        };
+
+        window.showBatchesToReset = (userName) => {
+            const div = document.getElementById('reset-user-list');
+            
+            let userBatches = localInputData
+                .filter(b => b.checkerName === userName)
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            div.innerHTML = `<button onclick="openResetMenu()" style="background:none; border:none; color:#007bff; padding:0; margin-bottom:10px; cursor:pointer;">⬅ Quay lại</button>`;
+            div.innerHTML += `<h4 style="margin:0 0 15px 0;">Tour của: ${userName}</h4>`;
+
+            if (userBatches.length === 0) {
+                div.innerHTML += '<p style="text-align:center; color:#999;">Không còn tour nào.</p>';
+                return;
+            }
+
+            userBatches.forEach((batch, index) => {
+                const tourNum = userBatches.length - index; 
+                const timeStr = new Date(batch.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                div.innerHTML += `
+                    <div class="reset-batch-item">
+                        <div class="reset-batch-info">
+                            <b>Tour ${tourNum}</b> (${timeStr})<br>
+                            <span style="color:#666">SL: ${batch.totalBatchQty} thùng - ${batch.items ? batch.items.length : 0} dòng</span>
+                        </div>
+                        <button onclick="deleteSpecificBatch('${batch.id}', '${userName}')" 
+                                class="btn-mini" style="background:#dc3545; padding:8px 12px;">Xóa</button>
+                    </div>`;
+            });
+        };
+
+        window.deleteSpecificBatch = async (batchId, userName) => {
+            if (!confirm(`Bạn có chắc muốn xóa Tour này của ${userName}?`)) return;
+            
+            try {
+                addLog('info', `Đang xóa tour [${batchId}] của ${userName}...`);
+                await remove(ref(db, `${REF_INPUT}/${batchId}`));
+                addLog('success', `Đã xóa thành công tour [${batchId}] của ${userName}`);
+                alert("Đã xóa tour thành công!");
+                showBatchesToReset(userName);
+            } catch (e) {
+                addLog('error', 'Lỗi khi xóa tour: ' + e.message, e);
+                alert("Lỗi khi xóa: " + e.message);
+            }
+        };
+
+        async function doResetAllData() {
+            try {
+                addLog('warn', 'Đang thực hiện xóa sạch toàn bộ dữ liệu nhập (input_data)...');
+                await set(ref(db, REF_INPUT), null);
+                addLog('success', 'Đã xóa sạch dữ liệu nhập trên CSDL.');
+                await window.showCustomModal("Thông báo", "Đã XÓA SẠCH dữ liệu!");
+                window.closeModal('reset-modal');
+            } catch (e) {
+                addLog('error', 'Lỗi khi xóa sạch dữ liệu: ' + e.message, e);
+                await window.showCustomModal("Lỗi", "Lỗi: " + e.message);
+            }
+        }
+        function resetUserData() {
+            triggerResetAll();
+        }
+
+        // --- 9. CHỐT CƯỚC & LỊCH SỬ KẾT QUẢ ---
+        window.saveResultHistory = async () => {
+            const headerC4 = document.getElementById('display-c4').innerText;
+            if (!headerC4 || headerC4 === "-") {
+                return alert("⚠️ Không tìm thấy tiêu đề (ô C4). Vui lòng upload Excel trước!");
+            }
+
+            const confirmSave = await window.showCustomModal(
+                "📌 Chốt dữ liệu", 
+                `Ngày: ${headerC4}?`, 
+                true
+            );
+
+            if (!confirmSave) return;
+
+            const checkers = [...new Set(localInputData.map(b => b.checkerName))];
+            
+            const mData = {};
+            localMasterData.forEach(i => {
+                const k = i.receiver.toUpperCase().trim();
+                if(!mData[k]) mData[k] = {name: i.receiver, exp:0};
+                mData[k].exp += i.expectedQuantity;
+            });
+            
+            const iData = {};
+            localInputData.forEach(batch => {
+                if(batch.items) {
+                    batch.items.forEach(item => {
+                        const k = item.receiver.toUpperCase().trim();
+                        if(!iData[k]) iData[k] = 0;
+                        iData[k] += item.quantity;
+                    });
                 }
             });
 
-            // Lưu cả dữ liệu khách và thông tin header lên Firebase
-            await set(ref(db, REF_MASTER), {
-                info3: infoC3,
-                info4: infoC4,
-                details: cleanData
-            });
+            const finalSnap = [];
+            for(let k in mData) {
+                finalSnap.push({ name: mData[k].name, exp: mData[k].exp, act: iData[k] || 0 });
+            }
+            for(let k in iData) {
+                if(!mData[k]) finalSnap.push({ name: k + " (Lạ)", exp: 0, act: iData[k] });
+            }
+
+            const now = Date.now();
+            const payload = {
+                title: headerC4,
+                checkers: checkers,
+                timestamp: now,
+                dateStr: new Date(now).toLocaleString(),
+                details: finalSnap
+            };
+
+            try {
+                const safeBase = headerC4.replace(/[.#$[\]]/g, "_");
+                const safeKey = `${safeBase}_${now}`;
+                addLog('info', `Đang lưu chốt cước: "${headerC4}" (${finalSnap.length} dòng)...`);
+                await set(ref(db, `${REF_RESULT_HISTORY}/${safeKey}`), payload);
+                addLog('success', `Đã lưu chốt cước thành công vào: ${safeKey}`);
+                await window.showCustomModal("Thành công");
+            } catch (e) {
+                addLog('error', 'Lỗi khi lưu chốt cước: ' + e.message, e);
+                await window.showCustomModal("Lỗi", "Lỗi khi lưu: " + e.message);
+            }
+        };
+
+        function sanitizeId(key) {
+            return `detail_${String(key).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        }
+
+        window.openResultHistoryModal = () => {
+            addLog('info', 'Đang tải danh sách lịch sử chốt cước...');
+            onValue(ref(db, REF_RESULT_HISTORY), (snapshot) => {
+                const data = snapshot.val();
+                const listDiv = document.getElementById('result-history-list');
+                listDiv.innerHTML = '';
+
+                if (!data) {
+                    addLog('info', 'Lịch sử chốt cước đang trống.');
+                    listDiv.innerHTML = '<p style="text-align:center; color:#999;">Chưa có dữ liệu lịch sử.</p>';
+                } else {
+                    const sortedKeys = Object.keys(data).sort((a,b)=>{
+                        const ta = data[a].timestamp || 0;
+                        const tb = data[b].timestamp || 0;
+                        return tb - ta;
+                    });
+                    addLog('info', `Đã tải ${sortedKeys.length} bản ghi lịch sử chốt cước.`);
+
+                    sortedKeys.forEach(key => {
+                        const record = data[key];
+                        const checkerList = record.checkers ? record.checkers.join(", ") : "Không rõ";
+                        const dateStr = record.dateStr || (record.timestamp ? new Date(record.timestamp).toLocaleString() : 'Không rõ');
+                        const detailId = sanitizeId(key);
+
+                        let tableRows = '';
+                        (record.details || []).forEach(row => {
+                            const status = row.act === row.exp ? 'Khớp' : (row.act > row.exp ? 'Dư' : 'Thiếu');
+                            const color = row.act === row.exp ? '#28a745' : (row.act > row.exp ? '#fd7e14' : '#dc3545');
+                            tableRows += `
+                                <tr>
+                                    <td>${row.name}</td>
+                                    <td align="center">${row.exp}</td>
+                                    <td align="center">${row.act}</td>
+                                    <td align="center" style="color:${color}">${status}</td>
+                                </tr>`;
+                        });
+
+                        listDiv.innerHTML += `
+                            <div class="box" style="border-left: 5px solid #6f42c1; margin-bottom: 10px; padding: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap:10px;">
+                                    <div style="flex:1; min-width:0">
+                                        <strong style="font-size: 16px; color: #333; display:block;">📅 ${record.title}</strong>
+                                        <div style="font-size: 13px; color: #666; margin-top: 5px;">${dateStr}<br>👤 Người nhập: <span style="color: #007bff;">${checkerList}</span></div>
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:flex-start">
+                                        <button onclick="toggleHistoryDetail('${key}')" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xem chi tiết</button>
+                                        <button onclick="deleteHistoryRecord('${key}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xóa</button>
+                                    </div>
+                                </div>
+
+                                <div id="${detailId}" class="hidden" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; overflow-x: auto;">
+                                    <table style="width:100%; font-size:13px;">
+                                        <thead style="background:#f8f9fa;"><tr><th>Tên Khách</th><th>Gốc</th><th>Nhập</th><th>KQ</th></tr></thead>
+                                        <tbody>${tableRows}</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                    });
+                }
+            }, (error) => {
+                addLog('error', 'Lỗi tải lịch sử chốt cước: ' + error.message, error);
+            }, { onlyOnce: true });
+
+            document.getElementById('result-history-modal').classList.remove('hidden');
+        };
+
+        window.toggleHistoryDetail = (key) => {
+            const id = sanitizeId(key);
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('hidden');
+        };
+
+        window.deleteHistoryRecord = async (key) => {
+            const confirmDelete = await window.showCustomModal(
+                "⚠️ Xác nhận xóa", 
+                "Bạn có chắc muốn xóa vĩnh viễn dữ liệu đợt này không?", 
+                true
+            );
             
-            status.innerHTML = '<b style="color:green;">✅ Đã xong</b>';
-        } catch (err) {
-            status.innerHTML = '<span style="color:red;">❌ Lỗi đọc file</span>';
-        }
-    };
-    r.readAsArrayBuffer(file);
-}
+            if (!confirmDelete) return;
+            try {
+                addLog('info', `Đang xóa bản ghi chốt cước [${key}]...`);
+                await remove(ref(db, `${REF_RESULT_HISTORY}/${key}`));
+                addLog('success', `Đã xóa bản ghi chốt cước [${key}].`);
+                await window.showCustomModal("Thành công", "Đã xóa dữ liệu chốt.");
+                window.openResultHistoryModal();
+            } catch (e) {
+                addLog('error', 'Lỗi khi xóa lịch sử chốt: ' + e.message, e);
+                await window.showCustomModal("Lỗi", 'Lỗi khi xóa: ' + e.message);
+            }
+        };
 
-        // --- 8. QUẢN LÝ: RESET (DÙNG PASSWORD MODAL) ---
-        // --- 8. QUẢN LÝ: RESET (CHỌN TỪNG TOUR) ---
-window.openResetMenu = () => {
-    const users = [...new Set(localInputData.map(i => i.checkerName))];
-    const div = document.getElementById('reset-user-list');
-    div.innerHTML = '<h4 style="margin:10px 0">Chọn người nhập:</h4>';
-    
-    users.forEach(u => {
-        div.innerHTML += `
-            <button onclick="showBatchesToReset('${u}')" 
-                    style="width:100%; text-align:left; padding:12px; margin-bottom:8px; border:1px solid #ccc; border-radius:8px; background:white; font-weight:bold;">
-                👤 ${u} ➜
-            </button>`;
-    });
-    document.getElementById('reset-modal').classList.remove('hidden');
-};
+        // Hàm hiển thị Popup thay thế cho alert và confirm
+        window.showCustomModal = (title, message, isConfirm = false) => {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('alert-modal');
+                const titleEl = document.getElementById('alert-title');
+                const msgEl = document.getElementById('alert-message');
+                const okBtn = document.getElementById('alert-ok-btn');
+                const cancelBtn = document.getElementById('alert-cancel-btn');
 
-// Hàm mới: Hiện danh sách các Tour của người đó để chọn
-window.showBatchesToReset = (userName) => {
-    const div = document.getElementById('reset-user-list');
-    
-    // Lọc và sắp xếp tour của người này (mới nhất lên đầu)
-    let userBatches = localInputData
-        .filter(b => b.checkerName === userName)
-        .sort((a, b) => b.timestamp - a.timestamp);
+                titleEl.innerText = title;
+                msgEl.innerText = message || "";
+                
+                cancelBtn.style.display = isConfirm ? 'block' : 'none';
+                modal.classList.remove('hidden');
 
-    div.innerHTML = `<button onclick="openResetMenu()" style="background:none; border:none; color:#007bff; padding:0; margin-bottom:10px; cursor:pointer;">⬅ Quay lại</button>`;
-    div.innerHTML += `<h4 style="margin:0 0 15px 0;">Tour của: ${userName}</h4>`;
+                okBtn.onclick = () => {
+                    modal.classList.add('hidden');
+                    resolve(true);
+                };
 
-    if (userBatches.length === 0) {
-        div.innerHTML += '<p style="text-align:center; color:#999;">Không còn tour nào.</p>';
-        return;
-    }
+                cancelBtn.onclick = () => {
+                    modal.classList.add('hidden');
+                    resolve(false);
+                };
+            });
+        };
 
-    userBatches.forEach((batch, index) => {
-        // Tính toán số thứ tự tour (tương tự phần lịch sử)
-        const tourNum = userBatches.length - index; 
-        const timeStr = new Date(batch.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        window.handleChamCong = () => {
+            alert("Tính năng Chấm công đang được phát triển!");
+        };
 
-        div.innerHTML += `
-            <div class="reset-batch-item">
-                <div class="reset-batch-info">
-                    <b>Tour ${tourNum}</b> (${timeStr})<br>
-                    <span style="color:#666">SL: ${batch.totalBatchQty} thùng - ${batch.items ? batch.items.length : 0} dòng</span>
-                </div>
-                <button onclick="deleteSpecificBatch('${batch.id}', '${userName}')" 
-                        class="btn-mini" style="background:#dc3545; padding:8px 12px;">Xóa</button>
-            </div>`;
-    });
-};
-
-// Hàm thực hiện xóa một tour cụ thể
-window.deleteSpecificBatch = async (batchId, userName) => {
-    if (!confirm(`Bạn có chắc muốn xóa Tour này của ${userName}?`)) return;
-    
-    try {
-        await remove(ref(db, `${REF_INPUT}/${batchId}`));
-        alert("Đã xóa tour thành công!");
-        // Load lại danh sách tour của người đó
-        showBatchesToReset(userName);
-    } catch (e) {
-        alert("Lỗi khi xóa: " + e.message);
-    }
-};
-
-// Expose thêm hàm mới ra window
-window.showBatchesToReset = showBatchesToReset;
-window.deleteSpecificBatch = deleteSpecificBatch;
-
-        // Hàm xóa tất cả (Gọi từ Modal Password)
-        async function doResetAllData() {
-            await set(ref(db, REF_INPUT), null);
-            await window.showCustomModal("Thông báo", "Đã XÓA SẠCH dữ liệu!");
-            window.closeModal('reset-modal');
-        }
-function resetUserData() {
-    triggerResetAll();
-}
-
-        // Expose Functions
+        // Expose Functions to window
         window.nextRow = nextRow;
         window.submitData = submitData;
         window.deleteRow = deleteRow;
         window.handleFileUpload = handleFileUpload;
         window.resetUserData = resetUserData;
-        window.triggerResetAll = triggerResetAll; // Mới: gọi modal
-        window.handlePasswordSubmit = handlePasswordSubmit; // Mới: xử lý modal
+        window.triggerResetAll = triggerResetAll;
+        window.handlePasswordSubmit = handlePasswordSubmit;
         window.openResetMenu = openResetMenu;
+        window.showBatchesToReset = showBatchesToReset;
+        window.deleteSpecificBatch = deleteSpecificBatch;
         window.openHistoryModal = openHistoryModal;
         window.openSearchModal = openSearchModal;
         window.managerSearch = managerSearch;
         window.checkManagerLogin = checkManagerLogin;
-
-
-
-
-
-
-
-        // Thêm hàm này vào phần script
-window.handleChamCong = () => {
-    // Bạn có thể đổi lệnh này thành link web hoặc hiện modal tùy ý
-    alert("Tính năng Chấm công đang được phát triển!");
-    // Ví dụ nếu muốn chuyển trang: window.location.href = 'link_cham_cong_cua_ban';
-};
-
-const REF_RESULT_HISTORY = "result_history";
-
-    // 1. Hàm lưu kết quả: Lấy Header C4 và danh sách người nhập
-    window.saveResultHistory = async () => {
-        const headerC4 = document.getElementById('display-c4').innerText;
-        if (!headerC4 || headerC4 === "-") {
-            return alert("⚠️ Không tìm thấy tiêu đề (ô C4). Vui lòng upload Excel trước!");
-        }
-
-       const confirmSave = await window.showCustomModal(
-    "📌 Chốt dữ liệu", 
-    `Ngày: ${headerC4}?`, 
-    true // Hiện nút Hủy (isConfirm = true)
-);
-
-if (!confirmSave) return;
-
-        // Lấy danh sách người đã nhập liệu
-        const checkers = [...new Set(localInputData.map(b => b.checkerName))];
-        
-        // Tính toán bảng so sánh (Gốc vs Nhập)
-        const mData = {};
-        localMasterData.forEach(i => {
-            const k = i.receiver.toUpperCase().trim();
-            if(!mData[k]) mData[k] = {name: i.receiver, exp:0};
-            mData[k].exp += i.expectedQuantity;
-        });
-        
-        const iData = {};
-        localInputData.forEach(batch => {
-            if(batch.items) {
-                batch.items.forEach(item => {
-                    const k = item.receiver.toUpperCase().trim();
-                    if(!iData[k]) iData[k] = 0;
-                    iData[k] += item.quantity;
-                });
-            }
-        });
-
-        const finalSnap = [];
-        for(let k in mData) {
-            finalSnap.push({ name: mData[k].name, exp: mData[k].exp, act: iData[k] || 0 });
-        }
-        for(let k in iData) {
-            if(!mData[k]) finalSnap.push({ name: k + " (Lạ)", exp: 0, act: iData[k] });
-        }
-
-        const now = Date.now();
-        const payload = {
-            title: headerC4, // Sử dụng dữ liệu ô C4
-            checkers: checkers, // Danh sách tên người nhập
-            timestamp: now,
-            dateStr: new Date(now).toLocaleString(),
-            details: finalSnap
-        };
-
-        try {
-            // Tạo khóa an toàn và duy nhất: tiêu đề đã sanitize + timestamp
-            const safeBase = headerC4.replace(/[.#$[\]]/g, "_");
-            const safeKey = `${safeBase}_${now}`;
-            await set(ref(db, `${REF_RESULT_HISTORY}/${safeKey}`), payload);
-            await window.showCustomModal("Thành công");
-        } catch (e) {
-            await window.showCustomModal("Lỗi", "Lỗi khi lưu: " + e.message);
-        }
-    };
-
-    // Utility: sanitize key for DOM id
-    function sanitizeId(key) {
-        return `detail_${String(key).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-    }
-
-    // 2. Hàm mở lịch sử: Hiển thị dạng danh sách chọn (tổng quát, 1 listener mỗi lần mở)
-    window.openResultHistoryModal = () => {
-        onValue(ref(db, REF_RESULT_HISTORY), (snapshot) => {
-            const data = snapshot.val();
-            const listDiv = document.getElementById('result-history-list');
-            listDiv.innerHTML = '';
-
-            if (!data) {
-                listDiv.innerHTML = '<p style="text-align:center; color:#999;">Chưa có dữ liệu lịch sử.</p>';
-            } else {
-                // Sắp xếp mới nhất lên đầu (keys chứa timestamp suffix)
-                const sortedKeys = Object.keys(data).sort((a,b)=>{
-                    const ta = data[a].timestamp || 0;
-                    const tb = data[b].timestamp || 0;
-                    return tb - ta;
-                });
-
-                sortedKeys.forEach(key => {
-                    const record = data[key];
-                    const checkerList = record.checkers ? record.checkers.join(", ") : "Không rõ";
-                    const dateStr = record.dateStr || (record.timestamp ? new Date(record.timestamp).toLocaleString() : 'Không rõ');
-                    const detailId = sanitizeId(key);
-
-                    // Build table rows safely
-                    let tableRows = '';
-                    (record.details || []).forEach(row => {
-                        const status = row.act === row.exp ? 'Khớp' : (row.act > row.exp ? 'Dư' : 'Thiếu');
-                        const color = row.act === row.exp ? '#28a745' : (row.act > row.exp ? '#fd7e14' : '#dc3545');
-                        tableRows += `
-                            <tr>
-                                <td>${row.name}</td>
-                                <td align="center">${row.exp}</td>
-                                <td align="center">${row.act}</td>
-                                <td align="center" style="color:${color}">${status}</td>
-                            </tr>`;
-                    });
-
-                    listDiv.innerHTML += `
-                        <div class="box" style="border-left: 5px solid #6f42c1; margin-bottom: 10px; padding: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap:10px;">
-                                <div style="flex:1; min-width:0">
-                                    <strong style="font-size: 16px; color: #333; display:block;">📅 ${record.title}</strong>
-                                    <div style="font-size: 13px; color: #666; margin-top: 5px;">${dateStr}<br>👤 Người nhập: <span style="color: #007bff;">${checkerList}</span></div>
-                                </div>
-                                <div style="display:flex; gap:8px; align-items:flex-start">
-                                    <button onclick="toggleHistoryDetail('${key}')" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xem chi tiết</button>
-                                    <button onclick="deleteHistoryRecord('${key}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">Xóa</button>
-                                </div>
-                            </div>
-
-                            <div id="${detailId}" class="hidden" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; overflow-x: auto;">
-                                <table style="width:100%; font-size:13px;">
-                                    <thead style="background:#f8f9fa;"><tr><th>Tên Khách</th><th>Gốc</th><th>Nhập</th><th>KQ</th></tr></thead>
-                                    <tbody>${tableRows}</tbody>
-                                </table>
-                            </div>
-                        </div>`;
-                });
-            }
-        }, { onlyOnce: true });
-
-        document.getElementById('result-history-modal').classList.remove('hidden');
-    };
-
-    // Hàm bổ trợ: Ẩn hiện chi tiết (dùng sanitizeId để tìm element)
-    window.toggleHistoryDetail = (key) => {
-        const id = sanitizeId(key);
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.classList.toggle('hidden');
-    };
-
-    // Hàm xóa một bản ghi lịch sử (chung, duy nhất)
-    window.deleteHistoryRecord = async (key) => {
-        const confirmDelete = await window.showCustomModal(
-        "⚠️ Xác nhận xóa", 
-        "Bạn có chắc muốn xóa vĩnh viễn dữ liệu đợt này không?", 
-        true
-    );
-    
-    if (!confirmDelete) return;
-        try {
-            await remove(ref(db, `${REF_RESULT_HISTORY}/${key}`));
-            await window.showCustomModal("Thành công", "Đã xóa dữ liệu chốt.");
-            // Refresh modal content
-            window.openResultHistoryModal();
-        } catch (e) {
-            await window.showCustomModal("Lỗi", 'Lỗi khi xóa: ' + e.message);
-        }
-    };
-
-
-// Hàm hiển thị Popup thay thế cho alert và confirm
-window.showCustomModal = (title, message, isConfirm = false) => {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('alert-modal');
-        const titleEl = document.getElementById('alert-title');
-        const msgEl = document.getElementById('alert-message');
-        const okBtn = document.getElementById('alert-ok-btn');
-        const cancelBtn = document.getElementById('alert-cancel-btn');
-
-        titleEl.innerText = title;
-        msgEl.innerText = message;
-        
-        // Nếu là alert (không phải confirm) thì ẩn nút Hủy
-        cancelBtn.style.display = isConfirm ? 'block' : 'none';
-        
-        modal.classList.remove('hidden');
-
-        okBtn.onclick = () => {
-            modal.classList.add('hidden');
-            resolve(true);
-        };
-
-        cancelBtn.onclick = () => {
-            modal.classList.add('hidden');
-            resolve(false);
-        };
-    });
-};
-
-
+        window.addLog = addLog;
     </script>
 </body>
 </html>
